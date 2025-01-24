@@ -1,3 +1,10 @@
+# transformer-from-scratch
+![image](https://github.com/user-attachments/assets/eb2020e4-40ae-445b-8d1b-b894931c6b42)
+
+References:
+- https://arxiv.org/abs/1706.03762
+- https://www.youtube.com/watch?v=ISNdQcPhsts
+
 ## Input Embeddings
 
 Map words to vocabulary ids, maps vocabulary ids to 512 dimension vectors
