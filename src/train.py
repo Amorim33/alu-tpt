@@ -122,11 +122,18 @@ def train_model(config):
     train_loader, test_loader, src_tokenizer, tgt_tokenizer = get_dataset(config)
     model = get_model(config, src_tokenizer.get_vocab_size(), tgt_tokenizer.get_vocab_size()).to(device)
     writer = SummaryWriter(config['experiment_name'])
-    optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9)
+    
+    # Define warmup parameters
+    warmup_steps = config.get('warmup_steps', 4000)
+    base_lr = config['lr']
+    
+    # Initialize optimizer with a very small learning rate
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-7, eps=1e-9)
 
-     # Add gradient accumulation steps
+    # Add gradient accumulation steps
     gradient_accumulation_steps = config.get('gradient_accumulation_steps', 1)
     print(f"Gradient accumulation steps: {gradient_accumulation_steps}")
+    print(f"Warmup steps: {warmup_steps}")
     
     max_grad_norm = config.get('max_grad_norm', 1.0)
 
@@ -150,6 +157,12 @@ def train_model(config):
         total_loss = 0
 
         for batch_idx, batch in enumerate(batch_iterator):
+            # Update learning rate based on warmup schedule
+            if global_step < warmup_steps:
+                lr = base_lr * (global_step + 1) / warmup_steps
+                for param_group in optimizer.param_groups:
+                    param_group['lr'] = lr
+            
             encoder_input = batch['encoder_input'].to(device)
             decoder_input = batch['decoder_input'].to(device)
             encoder_mask = batch['encoder_mask'].to(device)
