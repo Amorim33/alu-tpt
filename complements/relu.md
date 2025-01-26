@@ -3,9 +3,9 @@ The **RELU (Rectified Linear Unit)** activation function is one of the most comm
 ### Definition
 
 The ReLU function is mathematically defined as:
-\[
+$`
 f(x) = \max(0, x)
-\]
+`$
 
 This means:
 
@@ -46,9 +46,9 @@ The graph of the RELU function is a piecewise linear function:
 To address its limitations, several variations of ReLU have been introduced:
 
 1. **Leaky ReLU**:
-   \[
+   $`
    f(x) =
-   \begin{cases}
+   \`$egin{cases}
    x & \text{if } x > 0 \\
    \alpha x & \text{if } x \leq 0
    \end{cases}

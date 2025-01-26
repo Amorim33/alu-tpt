@@ -186,6 +186,64 @@ This block is repeated in every layer of the transformer, and its parameters are
 
 ## Multi-Head Attention
 
-TODO
+Multi-Head Attention is a key component of the transformer architecture that allows the model to focus on different parts of the input sequence simultaneously. It consists of multiple attention "heads" that can learn different types of relationships between tokens.
 
-## Residual Connection
+### **Components and Process**:
+
+1. **Linear Projections**:
+   For each head, create three matrices from the input:
+
+   - Query (Q): $`\mathbf{Q} = \mathbf{X}\mathbf{W}^Q`$
+   - Key (K): $`\mathbf{K} = \mathbf{X}\mathbf{W}^K`$
+   - Value (V): $`\mathbf{V} = \mathbf{X}\mathbf{W}^V`$
+
+   Where $`\mathbf{W}^Q, \mathbf{W}^K, \mathbf{W}^V`$ are learnable parameter matrices.
+
+2. **Scaled Dot-Product Attention**:
+   For each head, compute:
+   $`
+   \text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}\left(\frac{\mathbf{Q}\mathbf{K}^T}{\sqrt{d_k}}\right)\mathbf{V}
+   `$
+
+   - $`d_k`$ is the dimension of the key vectors
+   - Scaling by $`\sqrt{d_k}`$ prevents dot products from growing too large
+
+3. **Multi-Head Mechanism**:
+   $`
+   \text{MultiHead}(\mathbf{X}) = \text{Concat}(\text{head}_1, ..., \text{head}_h)\mathbf{W}^O
+   `$
+
+   Where each head is:
+   $`\text{head}_i = \text{Attention}(\mathbf{X}\mathbf{W}^Q_i, \mathbf{X}\mathbf{W}^K_i, \mathbf{X}\mathbf{W}^V_i)`$
+
+### **Benefits**:
+
+1. **Parallel Processing**: Multiple heads can process information simultaneously
+2. **Different Perspectives**: Each head can learn different types of relationships:
+   - Some heads might focus on local patterns
+   - Others might capture long-range dependencies
+   - Some might attend to semantic relationships
+3. **Enhanced Representation**: Combining multiple attention heads provides richer feature representations
+
+### **Dimensions**:
+
+- Input: $`\mathbf{X} \in \mathbb{R}^{n \times d_{model}}`$
+- Per head:
+  - $`\mathbf{W}^Q_i, \mathbf{W}^K_i \in \mathbb{R}^{d_{model} \times d_k}`$
+  - $`\mathbf{W}^V_i \in \mathbb{R}^{d_{model} \times d_v}`$
+- Output projection: $`\mathbf{W}^O \in \mathbb{R}^{hd_v \times d_{model}}`$
+
+Where:
+
+- $`n`$ is the sequence length
+- $`h`$ is the number of heads
+- $`d_{model}`$ is the model dimension
+- $`d_k = d_v = d_{model}/h`$ typically
+
+### **Types of Attention**:
+
+1. **Self-Attention**: Q, K, V all come from the same sequence
+2. **Cross-Attention**: Q comes from one sequence, K and V from another
+3. **Masked Attention**: Used in decoders to prevent attending to future tokens
+
+This mechanism is used throughout the transformer architecture in both the encoder and decoder, enabling the model to process sequential data effectively while capturing both local and global dependencies.

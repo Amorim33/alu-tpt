@@ -1,3 +1,0 @@
-- Review Multi-head attention
-- Finish Readme building blocks documentation
-- Continue train/dataset implementation

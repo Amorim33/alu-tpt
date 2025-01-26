@@ -36,6 +36,10 @@ class TranslationDataset(Dataset):
         decoder_input = torch.cat([self.sos_token, torch.Tensor(encoded_tgt_tokens).long(), self.pad_token.repeat(tgt_padding)]).long()
         label = torch.cat([torch.Tensor(encoded_tgt_tokens).long(), self.eos_token, self.pad_token.repeat(tgt_padding)]).long()
 
+        assert encoder_input.size(0) == self.seq_len
+        assert decoder_input.size(0) == self.seq_len
+        assert label.size(0) == self.seq_len
+
         return {
             'encoder_input': encoder_input, # (seq_len)
             'decoder_input': decoder_input, # (seq_len)
