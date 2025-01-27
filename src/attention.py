@@ -18,7 +18,7 @@ def attention(query, key, value, dropout: nn.Dropout, mask=None):
     # Apply the mask to prevent attention to certain elements
     if mask is not None:
         # This operation will set the attention scores to -10⁹ for all masked elements
-        attention_scores = attention_scores.masked_fill_(mask == 0, -1e4)
+        attention_scores = attention_scores.masked_fill_(mask == 0, -1e9)
 
     # Apply the softmax function to normalize the attention_scores
     # (batch_size, h, seq_len, seq_len)

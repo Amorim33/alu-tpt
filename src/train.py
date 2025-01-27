@@ -19,6 +19,7 @@ from config import get_config, get_weights_file_path
 from dataset import TranslationDataset, causal_mask
 from model import build_transformer
 
+
 def run_test(model, test_dataset, src_tokenizer, tgt_tokenizer, max_len, device, print_msg, num_examples=2):
     model.eval()
     count = 0
@@ -65,8 +66,6 @@ def run_test(model, test_dataset, src_tokenizer, tgt_tokenizer, max_len, device,
             if count == num_examples:
                 break
 
-
-
 def get_all_sentences(dataset, lang):
     for item in dataset:
         yield item['translation'][lang]
@@ -89,8 +88,8 @@ def get_dataset(config):
     src_tokenizer = get_or_build_tokenizer(config, dataset, config['src_lang'])
     tgt_tokenizer = get_or_build_tokenizer(config, dataset, config['tgt_lang'])
 
-    # split the dataset into train and test (90% train, 10% test)
-    train_size = int(0.9 * len(dataset))
+    # split the dataset into train and test (95% train, 5% test)
+    train_size = int(0.95 * len(dataset))
     test_size = len(dataset) - train_size
     train_dataset_raw, test_dataset_raw = random_split(dataset, [train_size, test_size])
 
@@ -108,14 +107,11 @@ def get_dataset(config):
     return train_loader, test_loader, src_tokenizer, tgt_tokenizer
 
 def get_model(config, vocab_src_len, vocab_tgt_len):
-    return build_transformer(vocab_src_len, vocab_tgt_len, config['seq_len'], config['seq_len'], config['d_model'])
+    return build_transformer(vocab_src_len, vocab_tgt_len, config['seq_len'], config['seq_len'], config['d_model'], config['num_heads'], config['num_layers'], config['d_ff'], config['dropout'])
     
 def train_model(config):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
-
-    # Initialize GradScaler for mixed precision training
-    scaler = torch.amp.GradScaler()
 
     Path(config['model_folder']).mkdir(exist_ok=True)
 
@@ -128,7 +124,7 @@ def train_model(config):
     base_lr = config['lr']
     
     # Initialize optimizer with a very small learning rate
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-7, eps=1e-9)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-7, eps=1e-9)
 
     # Add gradient accumulation steps
     gradient_accumulation_steps = config.get('gradient_accumulation_steps', 1)
@@ -146,12 +142,12 @@ def train_model(config):
         initial_epoch = state['epoch'] + 1
         model.load_state_dict(state['model_state_dict'])
         optimizer.load_state_dict(state['optimizer_state_dict'])
-        scaler.load_state_dict(state['scaler_state_dict'])
         global_step = state['global_step']
 
     loss_fn = nn.CrossEntropyLoss(ignore_index=src_tokenizer.token_to_id("[PAD]"), label_smoothing=0.1).to(device)
 
     for epoch in range(initial_epoch, config['num_epochs']):
+        torch.cuda.empty_cache()
         model.train()
         batch_iterator = tqdm(train_loader, desc=f"Processing epoch {epoch}")
         total_loss = 0
@@ -168,51 +164,46 @@ def train_model(config):
             encoder_mask = batch['encoder_mask'].to(device)
             decoder_mask = batch['decoder_mask'].to(device)
            
-            # Use autocast for mixed precision training
-            with torch.amp.autocast(device.type):
-                encoder_output = model.encode(encoder_input, encoder_mask)
-                decoder_output = model.decode(encoder_output, encoder_mask, decoder_input, decoder_mask)
-                proj_output = model.project(decoder_output)
+            encoder_output = model.encode(encoder_input, encoder_mask)
+            decoder_output = model.decode(encoder_output, encoder_mask, decoder_input, decoder_mask)
+            proj_output = model.project(decoder_output)
 
-                label = batch['label'].to(device)
+            label = batch['label'].to(device)
 
-                loss = loss_fn(proj_output.view(-1, tgt_tokenizer.get_vocab_size()), label.view(-1))
-                loss = loss / gradient_accumulation_steps
-                total_loss += loss.item()
-
-            # Scale the loss and call backward
-            scaler.scale(loss).backward()
+            loss = loss_fn(proj_output.view(-1, tgt_tokenizer.get_vocab_size()), label.view(-1))
+            loss = loss / gradient_accumulation_steps
+            total_loss += loss.item()
+            
+     
 
             # Only update weights after accumulating enough gradients
             if (batch_idx + 1) % gradient_accumulation_steps == 0:
-                # Unscale gradients before clipping
-                scaler.unscale_(optimizer)
-                
                 # Clip gradients
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
-                
-                # Perform optimizer step with GradScaler
-                scaler.step(optimizer)
-                scaler.update()
-                optimizer.zero_grad()
 
-                
                 batch_iterator.set_postfix({"loss": f"{total_loss:6.3f}"})
+
                 writer.add_scalar('Loss/train', total_loss, global_step)
                 writer.flush()
+
+                loss.backward()
+
+                optimizer.step()
+                optimizer.zero_grad()
+                           
                 total_loss = 0
                 global_step += 1
+
+        run_test(model, test_loader, src_tokenizer, tgt_tokenizer, config['seq_len'], device, lambda msg: batch_iterator.write(msg))
 
         model_filename = get_weights_file_path(config, f'{epoch:02d}')
         torch.save({
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
-            'scaler_state_dict': scaler.state_dict(),  # Save scaler state
             'global_step': global_step
         }, model_filename)
 
-        run_test(model, test_loader, src_tokenizer, tgt_tokenizer, config['seq_len'], device, lambda msg: batch_iterator.write(msg))
 
 if __name__ == '__main__':
     config = get_config()

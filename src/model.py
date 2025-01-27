@@ -59,7 +59,7 @@ class PositionalEncoding(nn.Module):
         """
         # Retrieve the positional encodings corresponding to the current input sequence length
         # "requires_grad_(False)" is used to prevent PyTorch from computing gradients for the positional encodings since they are fixed
-        positional_encodings = self.pe[:, :x.size(1)].requires_grad_(False)
+        positional_encodings = (self.pe[:, :x.size(1), :]).requires_grad_(False)
         # Add the input embeddings to the positional encodings to incorporate positional information
         combined = x + positional_encodings
         # Dropout is a regularization technique used to prevent overfitting by randomly setting a fraction of the input units to zero
@@ -73,7 +73,6 @@ class LayerNormalization(nn.Module):
         eps: small value to prevent division by zero
         """
         super().__init__()
-        self.d_model = d_model
         self.eps = eps
 
         # Learnable parameters
@@ -144,12 +143,12 @@ class MultiHeadAttentionBlock(nn.Module):
         self.d_k = d_model // h
 
         # Query, key, and value weight matrices
-        self.w_q = nn.Linear(d_model, d_model)
-        self.w_k = nn.Linear(d_model, d_model)
-        self.w_v = nn.Linear(d_model, d_model)
+        self.w_q = nn.Linear(d_model, d_model, bias=False)
+        self.w_k = nn.Linear(d_model, d_model, bias=False)
+        self.w_v = nn.Linear(d_model, d_model, bias=False)  
 
         # Output weight matrix
-        self.w_o = nn.Linear(d_model, d_model)
+        self.w_o = nn.Linear(d_model, d_model, bias=False)
 
         self.dropout = nn.Dropout(dropout)
 
@@ -297,8 +296,8 @@ class ProjectionLayer(nn.Module):
         """
         x: input batch of embedding vectors of shape (batch_size, seq_len, d_model)
         """
-        # Apply the softmax function to transform the vocabulary-sized output to a probability distribution
-        return torch.log_softmax(self.linear(x), dim=-1)
+        # (batch, seq_len, d_model) --> (batch, seq_len, vocab_size)
+        return self.linear(x)
     
 class Transformer(nn.Module):
     def __init__(self, encoder: Encoder, decoder: Decoder, src_embed: InputEmbedding, tgt_embed: InputEmbedding, src_pos: PositionalEncoding, tgt_pos: PositionalEncoding, projection_layer: ProjectionLayer) -> None:
@@ -335,11 +334,11 @@ class Transformer(nn.Module):
         """
         x: decoder output of shape (batch_size, seq_len, d_model)
         """
-        # Pass the output of the decoder through the projection layer
+        # (batch, seq_len, vocab_size)
         return self.projection_layer(x)
     
 
-def build_transformer(src_vocab_size: int, tgt_vocab_size: int, src_seq_len: int, tgt_seq_len: int, d_model: int = 512, N: int = 6, h: int = 8, dropout: float = 0.1, d_ff = 2048) -> Transformer:
+def build_transformer(src_vocab_size: int, tgt_vocab_size: int, src_seq_len: int, tgt_seq_len: int, d_model: int = 512, h: int = 8, N: int = 6,  d_ff = 2048, dropout: float = 0.1) -> Transformer:
     """
     Creates a Transformer instance optimized for machine translation tasks
     """

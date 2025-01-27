@@ -8,3 +8,10 @@ References:
 Personal Notes:
 
 [Transformer Blocks](/docs/transformer-blocks.md)
+
+## Modifications
+
+- Learning rate warmup
+- Gradient clipping
+- Gradient accumulation
+- Sub word tokenization

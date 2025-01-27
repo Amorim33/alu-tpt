@@ -5,13 +5,17 @@ def get_config():
         'src_lang': 'en',
         'tgt_lang': 'pt',
         "lr": 10**-4,
-        "seq_len": 249,
-        'd_model': 512,  
+        "seq_len": 241,
+        'd_model': 512,
+        'num_heads': 8,
+        'num_layers': 6,
+        'd_ff': 2048,
+        'dropout': 0.1,  
         'batch_size': 16,  
-        'num_epochs': 50,  
+        'num_epochs': 200,  
         'model_folder': 'weights',
         'model_filename': 'alu-tpt',
-        "preload": None,
+        "preload": 'latest',
         'tokenizer_path': 'tokenizer_{0}.json',
         'experiment_name': 'runs/alu-tpt',
         'gradient_accumulation_steps': 1,
@@ -20,4 +24,4 @@ def get_config():
     }
 
 def get_weights_file_path(config, epoch: str):
-    return str(Path('.') / config['model_folder'] / f"{config['model_filename']}-{epoch}.pt")
+    return str(Path('.') / config['model_folder'] / f"{config['model_filename']}-latest.pt")

@@ -58,5 +58,5 @@ def causal_mask(seq_len):
     A word should only attend to words that came before it.
     """
     mask = torch.ones(1, seq_len, seq_len)
-    mask = torch.tril(mask, diagonal=1).type(torch.int)
+    mask = torch.triu(mask, diagonal=1).type(torch.int)
     return mask == 0
